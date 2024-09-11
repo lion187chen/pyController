@@ -1,15 +1,15 @@
 from ControlUnit import ControlUnit
 from BleCentral import BleCentral
 
-class UnitPyBoat(ControlUnit):
+class UnitPyDrone(ControlUnit):
     def __init__(self, ble):
         self._ble = ble
     #
     def GetName(self):
-        return 'pyBoat'
+        return 'pyDrone'
     #
     def GetPicture(self):
-        return 'picture/pyBoat.jpg'
+        return 'picture/pyDrone.jpg'
     #
     def Send(self, code8):
         try:
@@ -22,15 +22,15 @@ class UnitPyBoat(ControlUnit):
         self._ble.Disconnect()
     #
     def OnMenuEnter(self):
-        print("Enter pyBoat control.")
+        print("Enter pyDrone control.")
     #
     def OnConnected(self):
-        print("pyBoat OnConnected")
+        print("pyDrone OnConnected")
     #
     def OnDisconnected(self):
-        print("pyBoat OnDisconnected")
+        print("pyDrone OnDisconnected")
     #
     def OnNotifyRx(self, data):
-        print("pyBoat OnNotifyRx: ", data[0])
+        print("pyDrone OnNotifyRx: ", data[0])
     #
 #
