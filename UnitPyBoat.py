@@ -1,7 +1,7 @@
 from ControlUnit import ControlUnit
 from BleCentral import BleCentral
 
-class UnitBoat(ControlUnit):
+class UnitPyBoat(ControlUnit):
     def __init__(self, central):
         self._central = central
     #

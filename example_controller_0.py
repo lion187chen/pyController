@@ -2,7 +2,7 @@ import bluetooth
 import time
 import tftlcd, controller
 from BleCentral import BleCentral
-from UnitBoat import UnitBoat
+from UnitPyBoat import UnitPyBoat
 
 def main():
     print("Welcome to pyController!")
@@ -12,7 +12,7 @@ def main():
     # 手柄按键初始化
     gamepad = controller.CONTROLLER()
     central = BleCentral(ble, lcd, gamepad)
-    boat = UnitBoat(central)
+    boat = UnitPyBoat(central)
     central.SetCtrlObj(boat)
     central.Scan()
     #
