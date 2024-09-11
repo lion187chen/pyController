@@ -21,7 +21,7 @@ class MainMenu:
         self._gamepad = gamepad
         #
         self._units = [UnitPyCar(ble), UnitPyDrone(ble), UnitPyBoat(ble)]
-        lcd.Clear()
+        self._lcd.Clear()
         self._lcd.Picture(0, 0, self.GetPicture())
     #
     def GetPicture(self):
@@ -29,7 +29,6 @@ class MainMenu:
     #
     def Exec(self):
         keys = self._gamepad.read()
-        print("get keys: ", keys)
         if keys[1]>200:
             self._select = (self._select+1) % len(self._units)
             self._lcd.Picture(0, 0, self.GetPicture())
@@ -37,10 +36,12 @@ class MainMenu:
             self._select = (self._select-1) % len(self._units)
             self._lcd.Picture(0, 0, self.GetPicture())
         #
-        if keys[6]==32:
+        if keys[2]>200 or keys[2]<50:
+            self._lcd.Clear()
             self._units[self._select].OnMenuEnter()
-            return
+            return self._units[self._select]
         #
+        return None
     #
 #
 

@@ -18,7 +18,20 @@ def main():
     mm = MainMenu(ble, clcd, gamepad)
     #
     while True:
-        mm.Exec()
+        unit = mm.Exec()
+        if unit:
+            print("start scan")
+            central.SetCtrlObj(unit)
+            central.Scan()
+            while not central.IsConnected():
+                time.sleep_ms(100)
+            #
+            while True:
+                key_value = gamepad.read()
+                print("key_value: ", tuple(bytes(key_value)))
+                unit.Send(key_value)
+                time.sleep(1)
+            #
         time.sleep_ms(50)
     #
 #
