@@ -13,8 +13,7 @@ def main():
     gamepad = controller.CONTROLLER()
     central = BleCentral(ble, lcd, gamepad)
     boat = UnitPyBoat(central)
-    central.SetCtrlObj(boat)
-    central.Scan()
+    central.Scan(boat)
     #
     while not central.IsConnected():
         time.sleep_ms(100)

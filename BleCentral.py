@@ -42,10 +42,10 @@ _UART_RX_CHAR_UUID = bluetooth.UUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
 _UART_TX_CHAR_UUID = bluetooth.UUID("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
 
 class BleDeviceInfo:
-    def __init__(self, name, mac, type, rssi):
+    def __init__(self, name, mac, atype, rssi):
         self.Name = name
         self.Mac = mac
-        self.Type = type
+        self.Type = atype
         self.Rssi = rssi
         s = binascii.hexlify(mac)
         self.MacStr = chr(s[0])+chr(s[1])+':' + chr(s[2])+chr(s[3]) + ':' +chr(s[4])+chr(s[5])+':' + \
@@ -69,14 +69,11 @@ class BleDeviceTable(Table):
         lcd.PrintStr(device.Name, 2,2+position*49, color=(0,0,0), size=2)
         lcd.PrintStr(device.Rssi+' ' if (-10 < device.Rssi) else device.Rssi, 140, 8+position*49, color=(0,0,0), size=2)
         lcd.PrintStr(device.MacStr, 2, 28+position*49, color=(0,0,0), size=1)
-        if selected:
-            print("this item is selected")
-            # TODO:
         #
     #
-    def AddInfo(self, name, mac, type, rssi):
+    def AddInfo(self, name, mac, atype, rssi):
         if mac not in self._devMap:
-            self._devices.append(BleDeviceInfo(name, mac, type, rssi))
+            self._devices.append(BleDeviceInfo(name, mac, atype, rssi))
             idx = len(self._devices)-1
             self._devMap[mac] = idx
         else:
@@ -88,6 +85,7 @@ class BleDeviceTable(Table):
     def Select(self, index):
         device = self._devices[index]
         return device.Name, device.Mac, self.Type
+    #
 #
 
 class BleCentral:
@@ -97,7 +95,7 @@ class BleCentral:
         self._ble.active(True)
         self._ble.irq(self.OnIrq)
         self._reset()
-    # __init__
+    #
     def _reset(self):
         self._obj = None
         self._back = False
@@ -114,10 +112,7 @@ class BleCentral:
         self._end_handle = None
         self._tx_handle = None
         self._rx_handle = None
-    # _reset
-    def SetCtrlObj(self, obj):
-        self._obj = obj
-    # SetCtrlObj
+    #
     def OnIrq(self, event, data):
         # global select
         #
@@ -187,7 +182,7 @@ class BleCentral:
         elif event == _IRQ_SCAN_DONE:
             if self._addr and not self._back:
                 # Found a device during the scan (and the scan was explicitly stopped).
-                self.ScanDone(self._addr_type, self._addr, self._name)
+                self.ScanDone()
             else:
                 # Scan timed out.
                 # TODO: return to main menu
@@ -246,7 +241,7 @@ class BleCentral:
             #
         elif event == _IRQ_GATTC_WRITE_DONE:
             conn_handle, value_handle, status = data
-            print("TX complete")
+            print("Tx complete")
         elif event == _IRQ_GATTC_NOTIFY:
             conn_handle, value_handle, notify_data = data
             if conn_handle == self._conn_handle and value_handle == self._tx_handle:
@@ -264,28 +259,21 @@ class BleCentral:
             and self._rx_handle is not None
         )
     #
-    def Scan(self):
+    def Scan(self, obj):
+        self._obj = obj
         # Find a device advertising the environmental sensor service.
         self._addr_type = None
         self._addr = None
-        #self._ble.gap_scan(2000, 30000, 30000)
-        self._ble.gap_scan(0, 30000, 30000) #一直扫描，不停止。
+        # self._ble.gap_scan(2000, 30000, 30000)
+        self._ble.gap_scan(0, 30000, 30000) # 一直扫描，不停止。
     #
-    def StopScan(self, name, mac, type):
-        self._addr_type = type
+    def StopScanAndConnect(self, mac, atype):
+        self._addr_type = atype
         self._addr = mac # Note: addr buffer is owned by caller so need to copy it.
-        self._name = name or "?"
         self._ble.gap_scan(None)
     #
-    def ScanDone(self, addr_type, addr, name):
-        if addr_type is not None:
-            print("Found peripheral:", addr_type, addr, name)
-            self.Connect()
-        else:
-            global not_found
-            not_found = True
-            print("No peripheral found.")
-        #
+    def ScanDone(self):
+        self.Connect()
     #
     def Connect(self, addr_type=None, addr=None):
         # Connect to the specified device (otherwise use cached address from a scan).
@@ -293,6 +281,7 @@ class BleCentral:
         self._addr = addr or self._addr
         if self._addr_type is None or self._addr is None:
             return False
+        #
         self._ble.gap_connect(self._addr_type, self._addr)
         return True
     #
@@ -300,13 +289,15 @@ class BleCentral:
         # Disconnect from current device.
         if not self._conn_handle:
             return
+        #
         self._ble.gap_disconnect(self._conn_handle)
         self._reset()
     #
     def Write(self, v, response=False):
-    # Send data over the UART
+        # Send data over the UART
         if not self.IsConnected():
             return
+        #
         self._ble.gattc_write(self._conn_handle, self._rx_handle, v, 1 if response else 0)
     #
 #

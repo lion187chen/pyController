@@ -5,13 +5,14 @@ class ControlUnit():
     def GetPicture(self):
         pass
     #
-    def Send(self, code8):
-        pass
+    # def Send(self, code8):
+    #     pass
     #
-    def Disconnect(self):
-        pass
+    # def Disconnect(self):
+    #     pass
     #
-    def OnMenuEnter(self):
+    # (DevSelectMenu menu)
+    def MenuEntered(self, menu):
         pass
     #
     def OnConnected(self):

@@ -36,13 +36,16 @@ class ControllerLcd:
 class MainMenu:
     # (ControllerLcd lcd, controller.CONTROLLER gamepad, BleCentral ble)
     def __init__(self, lcd, gamepad, ble):
-        self._select = 0
         self._lcd = lcd
         self._gamepad = gamepad
         #
         self._units = [UnitPyCar(lcd, ble), \
                        UnitPyDrone(lcd, ble), \
                         UnitPyBoat(lcd, ble)]
+        self.Reset()
+    #
+    def Reset(self):
+        self._select = 0
         self._lcd.Clear()
         self._lcd.Picture(0, 0, self.GetPicture())
     #
@@ -59,8 +62,6 @@ class MainMenu:
             self._lcd.Picture(0, 0, self.GetPicture())
         #
         if keys[2]>200 or keys[2]<50:
-            self._lcd.Clear()
-            self._units[self._select].OnMenuEnter()
             return self._units[self._select]
         #
         return None
@@ -70,9 +71,12 @@ class MainMenu:
 class DevSelectMenu:
     # (ControllerLcd lcd, controller.CONTROLLER gamepad)
     def __init__(self, lcd, gamepad):
-        self._select = 0
         self._lcd = lcd
         self._gamepad = gamepad
+        self.Reset()
+    #
+    def Reset(self):
+        self._select = 0
         self._page = 0
     #
     def DrawTable(self):
@@ -80,20 +84,37 @@ class DevSelectMenu:
             # 绘制 4 条两个高的横线，将显示屏分割成 5 个表格。
             self._lcd.DrawRect(0, 48*(i+1), 239, 2, BLACK, border=1, fillcolor=BLACK)
         #
+        # 此时 self._select 大概率为 0。
+        self._lcd.Picture(219, 9+self._select*49, 'picture/arrow.jpg')
     #
     def DoSelect(self, unit):
         keys = self._gamepad.read()
-        if keys[2]>200:
-            print("up")
+        if keys[1]>200:
+            print("right")
             if self._page+5<unit.Size():
                 self._page += 5
                 self._select = 0
             #
-        elif keys[2]<50:
-            print("down")
+        elif keys[1]<50:
+            print("left")
             if self._page-5 >=0:
                 self._page -= 5
                 self._select = 0
+            #
+        #
+        if keys[2]>200:
+            print("up")
+            if self._select>0:
+                self._lcd.Picture(219, 9+self._select*49, 'picture/arrow_none.jpg')
+                self._select -= 1
+                self._lcd.Picture(219, 9+self._select*49, 'picture/arrow.jpg')
+            #
+        elif keys[2]<50:
+            print("down")
+            if self._select<5 and (self._page*5+self._select+1)<unit.Size():
+                self._lcd.Picture(219, 9+self._select*49, 'picture/arrow_none.jpg')
+                self._select += 1
+                self._lcd.Picture(219, 9+self._select*49, 'picture/arrow.jpg')
             #
         #
         for i in range(self._page, self._page+5):
@@ -105,7 +126,9 @@ class DevSelectMenu:
         #
         if keys[6]==32: # start 键
             print("start")
-            unit.Select(self._select)
+            if unit.Size()>0:
+                unit.Select(self._select)
+            #
         #
         time.sleep_ms(50)
     #
@@ -123,16 +146,13 @@ class Controller(ControllerLcd):
     def Exec(self):
         unit = self._mmenu.DoSelect()
         if unit:
+            unit.Clean()
             self.Clear()
+            self._dmenu.Reset
             self._dmenu.DrawTable()
             #
-            self._ble.SetCtrlObj(unit)
-            self._ble.Scan()
-            while not self._ble.IsConnected():
-                self._dmenu.DoSelect(unit)
-            #
-            while True:
-                time.sleep(1)
+            unit.MenuEntered(self._dmenu)
+            self._mmenu.Reset()
         #
         time.sleep_ms(50)
     #

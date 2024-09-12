@@ -1,6 +1,7 @@
 from ControllerInterface import ControlUnit
 from BleCentral import BleDeviceTable
-from BleCentral import BleCentral
+# from BleCentral import BleCentral
+import time
 
 class UnitPyCar(ControlUnit, BleDeviceTable):
     # (ControllerLcd lcd, BleCentral ble)
@@ -16,22 +17,34 @@ class UnitPyCar(ControlUnit, BleDeviceTable):
         return 'picture/pyCar.jpg'
     #
     def Select(self, index):
-        self._lcd.Clear()
-        name, mac, type = super().Select(index)
-        self._ble.StopScan(name, mac, type)
+        name, mac, atype = super().Select(index)
+        print("Select Device: ", name)
+        if atype is not None and mac is not None:
+            self._ble.StopScanAndConnect(mac, atype)
+            self._lcd.Clear()
+        #
     #
-    def Send(self, code8):
+    def Send(self, kcode):
         try:
-            self._ble.Write(bytes(code8), False)
+            self._ble.Write(bytes(kcode), False)
         except:
-            print("TX failed")
+            print("Tx failed")
         #
     #
     def Disconnect(self):
         self._ble.Disconnect()
     #
-    def OnMenuEnter(self):
+    def MenuEntered(self, menu):
         print("Enter pyCar control.")
+        self._lcd.Clear()
+        #
+        self._ble.Scan(self)
+        while not self._ble.IsConnected():
+            menu.DoSelect(self)
+        #
+        while self._ble.IsConnected():
+            time.sleep(1)
+        #
     #
     def OnConnected(self):
         print("pyCar OnConnected")
