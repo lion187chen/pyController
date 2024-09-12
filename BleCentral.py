@@ -1,6 +1,7 @@
 import bluetooth
 import binascii
-from ControlUnit import ControlUnit
+from ControllerInterface import ControlUnit
+from ControllerInterface import Table
 
 from ble_advertising import decode_services, decode_name
 
@@ -40,36 +41,58 @@ _UART_SERVICE_UUID = bluetooth.UUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
 _UART_RX_CHAR_UUID = bluetooth.UUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
 _UART_TX_CHAR_UUID = bluetooth.UUID("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
 
-#存放搜索到的蓝牙设备数据
-macs = []
-macs_str = []
-names=[]
-rssis=[]
-addr_types=[]
-select = 0 # 蓝牙设备选择
+class BleDeviceInfo:
+    def __init__(self, name, mac, type, rssi):
+        self.Name = name
+        self.Mac = mac
+        self.Type = type
+        self.Rssi = rssi
+        s = binascii.hexlify(mac)
+        self.MacStr = chr(s[0])+chr(s[1])+':' + chr(s[2])+chr(s[3]) + ':' +chr(s[4])+chr(s[5])+':' + \
+            chr(s[6])+chr(s[7])+':'+chr(s[8])+chr(s[9])+':'+chr(s[10])+chr(s[11])
+    #
+#
 
-#定义常用颜色
-RED = (255,0,0)
-GREEN = (0,255,0)
-BLUE = (0,0,255)
-BLACK = (0,0,0)
-WHITE = (255,255,255)
-DEEPGREEN = (0,139,0) #深绿色
-
-class ControllerMenu:
-    def __init__(self, lcd, gamepad):
-        self._lcd = lcd
-        self._gamepad = gamepad
-    # __init__
-    def Clear(self):
-        self._lcd.fill((255,255,255))
-    # Clear
-# ControllerMenu
+class BleDeviceTable(Table):
+    def __init__(self):
+        self.Clean()
+    #
+    def Clean(self):
+        self._devices = []
+        self._devMap = {}
+    #
+    def Size(self):
+        return len(self._devices)
+    #
+    def PrintInfo(self, lcd, index, position, selected):
+        device = self._devices[index]
+        lcd.PrintStr(device.Name, 2,2+position*49, color=(0,0,0), size=2)
+        lcd.PrintStr(device.Rssi+' ' if (-10 < device.Rssi) else device.Rssi, 140, 8+position*49, color=(0,0,0), size=2)
+        lcd.PrintStr(device.MacStr, 2, 28+position*49, color=(0,0,0), size=1)
+        if selected:
+            print("this item is selected")
+            # TODO:
+        #
+    #
+    def AddInfo(self, name, mac, type, rssi):
+        if mac not in self._devMap:
+            self._devices.append(BleDeviceInfo(name, mac, type, rssi))
+            idx = len(self._devices)-1
+            self._devMap[mac] = idx
+        else:
+            # 如果已经存在则更新信号强度。
+            idx = self._devMap[mac]
+            self._devMap[mac].Rssi = rssi
+        #
+    #
+    def Select(self, index):
+        device = self._devices[index]
+        return device.Name, device.Mac, self.Type
+#
 
 class BleCentral:
-    def __init__(self, ble, lcd, gamepad):
+    def __init__(self, ble, gamepad):
         self._ble = ble
-        self._lcd = lcd
         self._gamepad = gamepad
         self._ble.active(True)
         self._ble.irq(self.OnIrq)
@@ -91,17 +114,12 @@ class BleCentral:
         self._end_handle = None
         self._tx_handle = None
         self._rx_handle = None
-        # 清屏，白色
-        self._lcd.fill((255,255,255))
-        # 画线框
-        for i in range(4):
-            self._lcd.drawRect(0, 48*(i+1), 239, 2, BLACK, border=1, fillcolor=BLACK)
     # _reset
     def SetCtrlObj(self, obj):
         self._obj = obj
     # SetCtrlObj
     def OnIrq(self, event, data):
-        global select
+        # global select
         #
         if event == _IRQ_SCAN_RESULT:
             if not self._obj:
@@ -114,55 +132,56 @@ class BleCentral:
             #
             addr_type, addr, adv_type, rssi, adv_data = data
             if adv_type in (_ADV_IND, _ADV_DIRECT_IND) and _UART_SERVICE_UUID in decode_services(adv_data) and (self._obj.GetName() in decode_name(adv_data)):
+                if self._obj:
+                    self._obj.AddInfo(decode_name(adv_data), bytes(addr), addr_type, str(rssi))
                 # Found a potential device, remember it and stop scanning.                
-                if bytes(addr) not in macs :
-                    addr_types.append(addr_type)
-                    macs.append(bytes(addr))
-                    s = binascii.hexlify(addr)
-                    macs_str.append(chr(s[0])+chr(s[1])+':' + chr(s[2])+chr(s[3]) + ':' +chr(s[4])+chr(s[5])+':' + \
-                            chr(s[6])+chr(s[7])+':'+chr(s[8])+chr(s[9])+':'+chr(s[10])+chr(s[11]))
-                    # print(macs_str)
-                    names.append(decode_name(adv_data))
-                    # print(names)
-                    rssis.append(str(rssi))
+                # if bytes(addr) not in macs :
+                #     addr_types.append(addr_type)
+                #     macs.append(bytes(addr))
+                #     s = binascii.hexlify(addr)
+                #     macs_str.append(chr(s[0])+chr(s[1])+':' + chr(s[2])+chr(s[3]) + ':' +chr(s[4])+chr(s[5])+':' + \
+                #             chr(s[6])+chr(s[7])+':'+chr(s[8])+chr(s[9])+':'+chr(s[10])+chr(s[11]))
+                #     # print(macs_str)
+                #     names.append(decode_name(adv_data))
+                #     # print(names)
+                #     rssis.append(str(rssi))
                 #
-                rssis[macs.index(bytes(addr))]=str(rssi) #刷新RSSI
+                # rssis[macs.index(bytes(addr))]=str(rssi) #刷新RSSI
                 #列表显示,最多显示5个
-                for i in range(min(len(macs),5)):
-                    self._lcd.printStr(names[i],2,2+i*49,color=(0,0,0),size=2)
-                    self._lcd.printStr(rssis[i]+' ' if (-10 < rssi) else rssis[i],140,8+i*49,color=(0,0,0),size=2)
-                    self._lcd.printStr(macs_str[i],2,28+i*49,color=(0,0,0),size=1)
+                # for i in range(min(len(macs),5)):
+                #     self._lcd.printStr(names[i],2,2+i*49,color=(0,0,0),size=2)
+                #     self._lcd.printStr(rssis[i]+' ' if (-10 < rssi) else rssis[i],140,8+i*49,color=(0,0,0),size=2)
+                #     self._lcd.printStr(macs_str[i],2,28+i*49,color=(0,0,0),size=1)
                 #
-                if -40 <= rssi <0:
-                    self._lcd.Picture(180, 2+macs.index(bytes(addr))*49, 'picture/signal_3.jpg')
-                if -75 <= rssi < -40:
-                    self._lcd.Picture(180, 2+macs.index(bytes(addr))*49, 'picture/signal_2.jpg')
-                if -99 <= rssi < -75:
-                    self._lcd.Picture(180, 2+macs.index(bytes(addr))*49, 'picture/signal_1.jpg')
+                # if -40 <= rssi <0:
+                #     self._lcd.Picture(180, 2+macs.index(bytes(addr))*49, 'picture/signal_3.jpg')
+                # if -75 <= rssi < -40:
+                #     self._lcd.Picture(180, 2+macs.index(bytes(addr))*49, 'picture/signal_2.jpg')
+                # if -99 <= rssi < -75:
+                #     self._lcd.Picture(180, 2+macs.index(bytes(addr))*49, 'picture/signal_1.jpg')
                 #
-                if select==0:
-                    self._lcd.Picture(219, 9+0*49, 'picture/arrow.jpg')                    
+                # if select==0:
+                #     self._lcd.Picture(219, 9+0*49, 'picture/arrow.jpg')                    
                 #
-                if key_value[5] == 0 : #上键
-                    self._lcd.Picture(219, 9+select*49, 'picture/arrow_none.jpg')
-                    select = select - 1            
-                    if select < 0:
-                        select =0
-                    self._lcd.Picture(219, 9+select*49, 'picture/arrow.jpg')
+                # if key_value[5] == 0 : #上键
+                #     self._lcd.Picture(219, 9+select*49, 'picture/arrow_none.jpg')
+                #     select = select - 1            
+                #     if select < 0:
+                #         select =0
+                #     self._lcd.Picture(219, 9+select*49, 'picture/arrow.jpg')
                 #
-                if key_value[5] == 4 : #下键
-                    self._lcd.Picture(219, 9+select*49, 'picture/arrow_none.jpg')
-                    select = select + 1            
-                    if select>min(len(macs)-1,4):                
-                        select = min(len(macs)-1,4)
-                    self._lcd.Picture(219, 9+select*49, 'picture/arrow.jpg')
+                # if key_value[5] == 4 : #下键
+                #     self._lcd.Picture(219, 9+select*49, 'picture/arrow_none.jpg')
+                #     select = select + 1            
+                #     if select>min(len(macs)-1,4):                
+                #         select = min(len(macs)-1,4)
+                #     self._lcd.Picture(219, 9+select*49, 'picture/arrow.jpg')
                 #
-                if key_value[6] == 32: # start 键
-                    print(select)
-                    self._addr_type = addr_types[select]
-                    self._addr = macs[select] # Note: addr buffer is owned by caller so need to copy it.
-                    self._name = names[select] or "?"
-                    self._ble.gap_scan(None)
+                # if key_value[6] == 32: # start 键
+                #     if self._obj:
+                #         self._obj.Select()
+                #     #
+                #     self._ble.gap_scan(None)
                 #
             #
         elif event == _IRQ_SCAN_DONE:
@@ -251,6 +270,12 @@ class BleCentral:
         self._addr = None
         #self._ble.gap_scan(2000, 30000, 30000)
         self._ble.gap_scan(0, 30000, 30000) #一直扫描，不停止。
+    #
+    def StopScan(self, name, mac, type):
+        self._addr_type = type
+        self._addr = mac # Note: addr buffer is owned by caller so need to copy it.
+        self._name = name or "?"
+        self._ble.gap_scan(None)
     #
     def ScanDone(self, addr_type, addr, name):
         if addr_type is not None:

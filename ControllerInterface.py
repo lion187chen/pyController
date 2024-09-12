@@ -24,3 +24,15 @@ class ControlUnit():
         pass
     #
 #
+
+class Table:
+    def Clean(self):
+        pass
+    #
+    def Size(self):
+        pass
+    #
+    def PrintInfo(self, lcd, index, position, selected):
+        pass
+    #
+#
