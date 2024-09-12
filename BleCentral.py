@@ -46,10 +46,14 @@ class BleDeviceInfo:
         self.Name = name
         self.Mac = mac
         self.Type = atype
-        self.Rssi = rssi
+        self.SetRssi(rssi)
         s = binascii.hexlify(mac)
         self.MacStr = chr(s[0])+chr(s[1])+':' + chr(s[2])+chr(s[3]) + ':' +chr(s[4])+chr(s[5])+':' + \
             chr(s[6])+chr(s[7])+':'+chr(s[8])+chr(s[9])+':'+chr(s[10])+chr(s[11])
+    #
+    def SetRssi(self, rssi):
+        self.Rssi = rssi
+        self.RssiStr = str(rssi)
     #
 #
 
@@ -67,9 +71,15 @@ class BleDeviceTable(Table):
     def PrintInfo(self, lcd, index, position, selected):
         device = self._devices[index]
         lcd.PrintStr(device.Name, 2,2+position*49, color=(0,0,0), size=2)
-        lcd.PrintStr(device.Rssi+' ' if (-10 < device.Rssi) else device.Rssi, 140, 8+position*49, color=(0,0,0), size=2)
+        lcd.PrintStr(device.RssiStr+' ' if (-10 < device.Rssi) else device.RssiStr, 140, 8+position*49, color=(0,0,0), size=2)
         lcd.PrintStr(device.MacStr, 2, 28+position*49, color=(0,0,0), size=1)
         #
+        if -40 <= device.Rssi <0:
+            lcd.Picture(180, 2+position*49, 'picture/signal_3.jpg')
+        if -75 <= device.Rssi < -40:
+            lcd.Picture(180, 2+position*49, 'picture/signal_2.jpg')
+        if -99 <= device.Rssi < -75:
+            lcd.Picture(180, 2+position*49, 'picture/signal_1.jpg')
     #
     def AddInfo(self, name, mac, atype, rssi):
         if mac not in self._devMap:
@@ -79,12 +89,12 @@ class BleDeviceTable(Table):
         else:
             # 如果已经存在则更新信号强度。
             idx = self._devMap[mac]
-            self._devMap[mac].Rssi = rssi
+            self._devices[idx].SetRssi(rssi)
         #
     #
     def Select(self, index):
         device = self._devices[index]
-        return device.Name, device.Mac, self.Type
+        return device.Name, device.Mac, device.Type
     #
 #
 
@@ -128,7 +138,7 @@ class BleCentral:
             addr_type, addr, adv_type, rssi, adv_data = data
             if adv_type in (_ADV_IND, _ADV_DIRECT_IND) and _UART_SERVICE_UUID in decode_services(adv_data) and (self._obj.GetName() in decode_name(adv_data)):
                 if self._obj:
-                    self._obj.AddInfo(decode_name(adv_data), bytes(addr), addr_type, str(rssi))
+                    self._obj.AddInfo(decode_name(adv_data), bytes(addr), addr_type, rssi)
                 # Found a potential device, remember it and stop scanning.                
                 # if bytes(addr) not in macs :
                 #     addr_types.append(addr_type)

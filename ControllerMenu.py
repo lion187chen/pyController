@@ -148,7 +148,7 @@ class Controller(ControllerLcd):
         if unit:
             unit.Clean()
             self.Clear()
-            self._dmenu.Reset
+            self._dmenu.Reset()
             self._dmenu.DrawTable()
             #
             unit.MenuEntered(self._dmenu)

@@ -36,7 +36,6 @@ class UnitPyBoat(ControlUnit, BleDeviceTable):
     #
     def MenuEntered(self, menu):
         print("Enter pyBoat control.")
-        self._lcd.Clear()
         #
         self._ble.Scan(self)
         while not self._ble.IsConnected():
