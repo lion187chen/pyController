@@ -1,6 +1,7 @@
 class ControlUnit():
-    # def GetName(self):
-    #     pass
+    def __init__(self, lcd, gamepad):
+        self._lcd = lcd
+        self._gamepad = gamepad
     #
     def GetPicture(self):
         pass
@@ -11,6 +12,9 @@ class ControlUnit():
 #
 
 class Table:
+    def __init__(self):
+        self.Clean()
+    #
     def Clean(self):
         pass
     #

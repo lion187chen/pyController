@@ -59,7 +59,7 @@ class BleDeviceInfo:
 
 class BleDeviceTable(Table):
     def __init__(self):
-        self.Clean()
+        Table.__init__(self)
     #
     def Clean(self):
         self._devices = []
@@ -103,8 +103,11 @@ class BleDeviceTable(Table):
 #
 
 class BleDevice(BleDeviceTable):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, ble):
+        BleDeviceTable.__init__(self)
+        self._ble = ble
+        self._mac = None
+        self._atype = None
     #
     def GetName(self):
         pass
@@ -117,6 +120,13 @@ class BleDevice(BleDeviceTable):
     #
     def OnNotifyRx(self, data):
         pass
+    #
+    def Send(self, data):
+        try:
+            self._ble.Write(bytes(data), False)
+        except:
+            print("Tx failed")
+        #
     #
 #
 

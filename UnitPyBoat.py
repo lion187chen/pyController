@@ -6,25 +6,14 @@ import time
 class UnitPyBoat(ControlUnit, BleDevice):
     # (ControllerLcd lcd, controller.CONTROLLER gamepad, BleCentral ble)
     def __init__(self, lcd, gamepad, ble):
-        super().__init__()
-        self._lcd = lcd
-        self._gamepad = gamepad
-        self._ble = ble
-        self._mac = None
-        self._atype = None
+        ControlUnit.__init__(self, lcd, gamepad)
+        BleDevice.__init__(self, ble)
     #
     def GetName(self):
         return 'pyBoat'
     #
     def GetPicture(self):
         return 'picture/pyBoat.jpg'
-    #
-    def Send(self, data):
-        try:
-            self._ble.Write(bytes(data), False)
-        except:
-            print("Tx failed")
-        #
     #
     def Disconnect(self):
         self._ble.Disconnect()

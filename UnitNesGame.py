@@ -5,8 +5,8 @@ import game, os, time
 
 class UnitNesGame(ControlUnit, Table):
     def __init__(self, lcd, gamepad):
-        self._lcd = lcd
-        self._gamepad = gamepad
+        ControlUnit.__init__(self, lcd, gamepad)
+        Table.__init__(self)
         self._nes = game.NES()
         self._games = os.listdir('/nes')
     #
