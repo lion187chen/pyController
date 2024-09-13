@@ -7,10 +7,10 @@ def main():
     ble = bluetooth.BLE()
     p = BlePeripheral(ble, name='pyBoat')
     #
-    def on_rx(v):
-        print("RX", tuple(v))
+    def OnRxData(data):
+        print("Rx", tuple(data))
     #
-    p.on_write(on_rx)
+    p.SetRxCb(OnRxData)
     #
     while True:
         time.sleep_ms(100)

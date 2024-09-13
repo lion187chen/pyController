@@ -2,7 +2,7 @@ from BleCentral import BleCentral
 import bluetooth
 import controller
 import tftlcd
-import time, binascii
+import time
 
 from UnitPyCar import UnitPyCar
 from UnitPyDrone import UnitPyDrone
@@ -39,9 +39,9 @@ class MainMenu:
         self._lcd = lcd
         self._gamepad = gamepad
         #
-        self._units = [UnitPyCar(lcd, ble), \
-                       UnitPyDrone(lcd, ble), \
-                        UnitPyBoat(lcd, ble)]
+        self._units = [UnitPyCar(lcd, gamepad, ble), \
+                       UnitPyDrone(lcd, gamepad, ble), \
+                        UnitPyBoat(lcd, gamepad, ble)]
         self.Reset()
     #
     def Reset(self):

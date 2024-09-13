@@ -1,6 +1,6 @@
 import bluetooth
 import binascii
-from ControllerInterface import ControlUnit
+# from ControllerInterface import ControlUnit
 from ControllerInterface import Table
 
 from ble_advertising import decode_services, decode_name
@@ -94,7 +94,11 @@ class BleDeviceTable(Table):
     #
     def Select(self, index):
         device = self._devices[index]
-        return device.Name, device.Mac, device.Type
+        name = device.Name
+        mac = device.Mac
+        atype = device.Type
+        self.Clean()
+        return name, mac, atype
     #
 #
 
@@ -104,11 +108,12 @@ class BleCentral:
         self._gamepad = gamepad
         self._ble.active(True)
         self._ble.irq(self.OnIrq)
-        self._reset()
+        self.Reset()
     #
-    def _reset(self):
+    def Reset(self):
         self._obj = None
-        self._back = False
+        self._rssicb = None
+        # self._back = False
         # Cached name and address from a successful scan.
         self._name = None
         self._addr_type = None
@@ -127,70 +132,31 @@ class BleCentral:
         # global select
         #
         if event == _IRQ_SCAN_RESULT:
-            if not self._obj:
-                return
+            if self._addr is None:
+                # 非 ScanPeripheralRssi 模式需要判断 self._obj 有效性。
+                if not self._obj:
+                    return
+                #
+                # 非 ScanPeripheralRssi 模式可以通过按钮取消。
+                # kcodes = self._gamepad.read()
+                # if kcodes[6] == 16: # back 键
+                    # self._back = True
+                    # self._ble.gap_scan(None)
+                #
             #
-            key_value = self._gamepad.read()
-            if key_value[6] == 16: # back 键
-                self._back = True
-                self._ble.gap_scan(None)
-            #
-            addr_type, addr, adv_type, rssi, adv_data = data
+            addr_type, mac, adv_type, rssi, adv_data = data
             if adv_type in (_ADV_IND, _ADV_DIRECT_IND) and _UART_SERVICE_UUID in decode_services(adv_data) and (self._obj.GetName() in decode_name(adv_data)):
-                if self._obj:
-                    self._obj.AddInfo(decode_name(adv_data), bytes(addr), addr_type, rssi)
-                # Found a potential device, remember it and stop scanning.                
-                # if bytes(addr) not in macs :
-                #     addr_types.append(addr_type)
-                #     macs.append(bytes(addr))
-                #     s = binascii.hexlify(addr)
-                #     macs_str.append(chr(s[0])+chr(s[1])+':' + chr(s[2])+chr(s[3]) + ':' +chr(s[4])+chr(s[5])+':' + \
-                #             chr(s[6])+chr(s[7])+':'+chr(s[8])+chr(s[9])+':'+chr(s[10])+chr(s[11]))
-                #     # print(macs_str)
-                #     names.append(decode_name(adv_data))
-                #     # print(names)
-                #     rssis.append(str(rssi))
-                #
-                # rssis[macs.index(bytes(addr))]=str(rssi) #刷新RSSI
-                #列表显示,最多显示5个
-                # for i in range(min(len(macs),5)):
-                #     self._lcd.printStr(names[i],2,2+i*49,color=(0,0,0),size=2)
-                #     self._lcd.printStr(rssis[i]+' ' if (-10 < rssi) else rssis[i],140,8+i*49,color=(0,0,0),size=2)
-                #     self._lcd.printStr(macs_str[i],2,28+i*49,color=(0,0,0),size=1)
-                #
-                # if -40 <= rssi <0:
-                #     self._lcd.Picture(180, 2+macs.index(bytes(addr))*49, 'picture/signal_3.jpg')
-                # if -75 <= rssi < -40:
-                #     self._lcd.Picture(180, 2+macs.index(bytes(addr))*49, 'picture/signal_2.jpg')
-                # if -99 <= rssi < -75:
-                #     self._lcd.Picture(180, 2+macs.index(bytes(addr))*49, 'picture/signal_1.jpg')
-                #
-                # if select==0:
-                #     self._lcd.Picture(219, 9+0*49, 'picture/arrow.jpg')                    
-                #
-                # if key_value[5] == 0 : #上键
-                #     self._lcd.Picture(219, 9+select*49, 'picture/arrow_none.jpg')
-                #     select = select - 1            
-                #     if select < 0:
-                #         select =0
-                #     self._lcd.Picture(219, 9+select*49, 'picture/arrow.jpg')
-                #
-                # if key_value[5] == 4 : #下键
-                #     self._lcd.Picture(219, 9+select*49, 'picture/arrow_none.jpg')
-                #     select = select + 1            
-                #     if select>min(len(macs)-1,4):                
-                #         select = min(len(macs)-1,4)
-                #     self._lcd.Picture(219, 9+select*49, 'picture/arrow.jpg')
-                #
-                # if key_value[6] == 32: # start 键
-                #     if self._obj:
-                #         self._obj.Select()
-                #     #
-                #     self._ble.gap_scan(None)
+                if self._addr:
+                    if self._addr==mac and self._rssicb:
+                        # ScanPeripheralRssi 模式
+                        self._rssicb(rssi)
+                    #
+                elif self._obj:
+                    self._obj.AddInfo(decode_name(adv_data), bytes(mac), addr_type, rssi)
                 #
             #
         elif event == _IRQ_SCAN_DONE:
-            if self._addr and not self._back:
+            if self._addr: # and not self._back:
                 # Found a device during the scan (and the scan was explicitly stopped).
                 self.ScanDone()
             else:
@@ -200,8 +166,8 @@ class BleCentral:
             #
         elif event == _IRQ_PERIPHERAL_CONNECT:
             # Connect successful.
-            conn_handle, addr_type, addr = data
-            if addr_type == self._addr_type and addr == self._addr:
+            conn_handle, addr_type, mac = data
+            if addr_type == self._addr_type and mac == self._addr:
                 self._conn_handle = conn_handle
                 self._ble.gattc_discover_services(self._conn_handle)
             #
@@ -213,7 +179,7 @@ class BleCentral:
                 if self._obj:
                     self._obj.OnDisconnected()
                 #
-                self._reset()
+                self.Reset()
                 #
             #
         elif event == _IRQ_GATTC_SERVICE_RESULT:
@@ -277,6 +243,19 @@ class BleCentral:
         # self._ble.gap_scan(2000, 30000, 30000)
         self._ble.gap_scan(0, 30000, 30000) # 一直扫描，不停止。
     #
+    def ScanPeripheralRssi(self, mac, callback):
+        # Find a device advertising the environmental sensor service.
+        self._addr_type = None
+        self._addr = mac
+        self._rssicb = callback
+        # self._ble.gap_scan(2000, 30000, 30000)
+        self._ble.gap_scan(0, 30000, 30000) # 一直扫描，不停止。
+    #
+    def StopScan(self):
+        self._addr_type = None
+        self._addr = None
+        self._ble.gap_scan(None)
+    #
     def StopScanAndConnect(self, mac, atype):
         self._addr_type = atype
         self._addr = mac # Note: addr buffer is owned by caller so need to copy it.
@@ -285,10 +264,10 @@ class BleCentral:
     def ScanDone(self):
         self.Connect()
     #
-    def Connect(self, addr_type=None, addr=None):
+    def Connect(self, addr_type=None, mac=None):
         # Connect to the specified device (otherwise use cached address from a scan).
         self._addr_type = addr_type or self._addr_type
-        self._addr = addr or self._addr
+        self._addr = mac or self._addr
         if self._addr_type is None or self._addr is None:
             return False
         #
@@ -301,13 +280,13 @@ class BleCentral:
             return
         #
         self._ble.gap_disconnect(self._conn_handle)
-        self._reset()
+        self.Reset()
     #
-    def Write(self, v, response=False):
+    def Write(self, data, response=False):
         # Send data over the UART
         if not self.IsConnected():
             return
         #
-        self._ble.gattc_write(self._conn_handle, self._rx_handle, v, 1 if response else 0)
+        self._ble.gattc_write(self._conn_handle, self._rx_handle, data, 1 if response else 0)
     #
 #

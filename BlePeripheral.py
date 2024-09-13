@@ -1,6 +1,4 @@
 import bluetooth
-import random
-import struct
 import time
 import binascii
 from ble_advertising import advertising_payload
@@ -51,26 +49,30 @@ _UART_SERVICE = (
     (_UART_TX, _UART_RX),
 )
 
-
 class BlePeripheral:
     def __init__(self, ble, name='mpy-uart'):
         self._ble = ble
         self._ble.active(True)
-        self._ble.irq(self._irq)
+        self._ble.irq(self.OnIrq)
         ((self._handle_tx, self._handle_rx),) = self._ble.gatts_register_services((_UART_SERVICE,))
         self._connections = set()
-        self._write_callback = None
-        
-        #获取mac地址
+        self._rxcb = None
+        self._disconnect = None
+        #
+        # 获取 mac 地址
         mac = binascii.hexlify(ble.config('mac')[1])
         mac_str = chr(mac[0])+chr(mac[1])+':' + chr(mac[2])+chr(mac[3]) + ':' +chr(mac[4])+chr(mac[5])+':' + \
                             chr(mac[6])+chr(mac[7])+':'+chr(mac[8])+chr(mac[9])+':'+chr(mac[10])+chr(mac[11])
         print('MAC: ', mac_str)      
-        
-        self._payload = advertising_payload(name=name,services=[_UART_UUID])
-        self._advertise()
-
-    def _irq(self, event, data):
+        #
+        self.Advertise(name)
+    #
+    def Advertise(self, name, interval_us=100000):
+        self._payload = advertising_payload(name=name, services=[_UART_UUID])
+        print("Starting advertising")
+        self._ble.gap_advertise(interval_us, adv_data=self._payload)
+    #
+    def OnIrq(self, event, data):
         # Track connections so we can send notifications.
         if event == _IRQ_CENTRAL_CONNECT:
             conn_handle, _, _ = data
@@ -80,47 +82,58 @@ class BlePeripheral:
             conn_handle, _, _ = data
             print("Disconnected", conn_handle)
             self._connections.remove(conn_handle)
-            # Start advertising again to allow a new connection.
-            self._advertise()
+            if self._disconnect:
+                self._disconnect()
+            #
         elif event == _IRQ_GATTS_WRITE:
             conn_handle, value_handle = data
             value = self._ble.gatts_read(value_handle)
-            if value_handle == self._handle_rx and self._write_callback:
-                self._write_callback(value)
-
-    def send(self, data):
+            if value_handle == self._handle_rx and self._rxcb:
+                self._rxcb(value)
+            #
+        #
+    #
+    def Write(self, data):
         for conn_handle in self._connections:
             self._ble.gatts_notify(conn_handle, self._handle_tx, data)
-
-    def is_connected(self):
+        #
+    #
+    def IsConnected(self):
         return len(self._connections) > 0
-
-    def _advertise(self, interval_us=100000):
-        print("Starting advertising")
-        self._ble.gap_advertise(interval_us, adv_data=self._payload)
-
-    def on_write(self, callback):
-        self._write_callback = callback
-
+    #
+    def SetRxCb(self, callback):
+        self._rxcb = callback
+    #
+    def SetDisconnectCb(self, callback):
+        self._disconnect = callback
+    #
+#
 
 def demo():
     ble = bluetooth.BLE()
-    p = BlePeripheral(ble, name='pyBoat')
+    peripheral = BlePeripheral(ble, name='pyBoat')
+    def OnDisconnected():
+        # Start advertising again to allow a new connection.
+        peripheral.Advertise()
     #
-    def on_rx(v):
-        print("RX", v)
+    peripheral.SetDisconnectCb(OnDisconnected)
     #
-    p.on_write(on_rx)
+    def OnRxData(data):
+        print("Rx", tuple(data))
+    #
+    peripheral.SetRxCb(OnRxData)
     #
     i = 0
     while True:
-        if p.is_connected():
+        if peripheral.IsConnected():
             # Short burst of queued notifications.
             for _ in range(3):
                 data = str(i) + "_"
-                print("TX", data)
-                p.send(data)
+                print("Tx", data)
+                peripheral.Write(data)
                 i += 1
+            #
+        #
         time.sleep_ms(100)
     #
 #
