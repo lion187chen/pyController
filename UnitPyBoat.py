@@ -53,11 +53,11 @@ class UnitPyBoat(ControlUnit, BleDevice):
                 #
                 time.sleep_ms(50)
             #
-            def OnRssi(rssi):
-                print("RSSI: ", rssi)
-            #
-            if self._mac:
-                self._ble.ScanPeripheralRssi(OnRssi)
+            # def OnRssi(rssi):
+            #     print("RSSI: ", rssi)
+            # #
+            # if self._mac:
+            #     self._ble.ScanPeripheralRssi(self._mac, OnRssi)
             #
             while self._ble.IsConnected():
                 self.Send(self._gamepad.read())

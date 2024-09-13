@@ -10,10 +10,10 @@ def CtrlCutTranscode(code):
     if code < 20:
         code = 20
     #
-    if code <= 95:
+    if code < 95:
         return (code-95)*100/75
-    elif code >= 125:
-        return (code-125)*100/110
+    elif code > 135:
+        return (code-135)*100/100
     else:
         return 0
     #
@@ -29,8 +29,8 @@ def main():
     #
     def MotoLCtrlL(percent):
         percent = percent*1023/100
-        if percent>0:
-            pwmLA.duty(int(percent))
+        if percent<0:
+            pwmLA.duty(-int(percent))
             pwmLB.duty(0)
         else:
             pwmLA.duty(0)
@@ -40,8 +40,8 @@ def main():
 
     def MotoLCtrlR(percent):
         percent = percent*1023/100
-        if percent>0:
-            pwmRB.duty(int(percent))
+        if percent<0:
+            pwmRB.duty(-int(percent))
             pwmRA.duty(0)
         else:
             pwmRB.duty(0)
@@ -52,14 +52,14 @@ def main():
     peripheral = BlePeripheral(ble, name='pyBoat')
     def OnDisconnected():
         # Start advertising again to allow a new connection.
-        peripheral.Advertise()
+        peripheral.Advertise(name='pyBoat')
     #
     peripheral.SetDisconnectCb(OnDisconnected)
     #
     def OnRxData(data):
         print("Rx", tuple(data))
-        ly = CtrlCutTranscode(data[2])
-        ry = CtrlCutTranscode(data[4])
+        ly = CtrlCutTranscode(data[4])
+        ry = CtrlCutTranscode(data[2])
         MotoLCtrlL(ly)
         MotoLCtrlR(ry)
     #
