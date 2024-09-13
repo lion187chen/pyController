@@ -102,6 +102,24 @@ class BleDeviceTable(Table):
     #
 #
 
+class BleDevice(BleDeviceTable):
+    def __init__(self):
+        super().__init__()
+    #
+    def GetName(self):
+        pass
+    #
+    def OnConnected(self):
+        pass
+    #
+    def OnDisconnected(self):
+        pass
+    #
+    def OnNotifyRx(self, data):
+        pass
+    #
+#
+
 class BleCentral:
     def __init__(self, ble, gamepad):
         self._ble = ble
@@ -138,8 +156,8 @@ class BleCentral:
                     return
                 #
                 # 非 ScanPeripheralRssi 模式可以通过按钮取消。
-                # kcodes = self._gamepad.read()
-                # if kcodes[6] == 16: # back 键
+                # keys = self._gamepad.read()
+                # if keys[6] == 16: # back 键
                     # self._back = True
                     # self._ble.gap_scan(None)
                 #
@@ -276,7 +294,9 @@ class BleCentral:
     #
     def Disconnect(self):
         # Disconnect from current device.
+        self._obj = None
         if not self._conn_handle:
+            self.Reset()
             return
         #
         self._ble.gap_disconnect(self._conn_handle)

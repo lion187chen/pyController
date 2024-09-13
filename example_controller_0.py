@@ -19,12 +19,12 @@ def main():
         time.sleep_ms(100)
     #
     while True:
-        kcodes = gamepad.read()
-        print("kcodes: ", tuple(bytes(kcodes)))
-        # if kcodes[6] == 16: # back 键
+        keys = gamepad.read()
+        print("key codes: ", tuple(bytes(keys)))
+        # if keys[6] == 16: # back 键
         #    boat.Disconnect()
         #
-        boat.Send(kcodes)
+        boat.Send(keys)
         time.sleep(1)
     #
 #

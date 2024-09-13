@@ -4,6 +4,7 @@ import controller
 import tftlcd
 import time
 
+from UnitNesGame import UnitNesGame
 from UnitPyCar import UnitPyCar
 from UnitPyDrone import UnitPyDrone
 from UnitPyBoat import UnitPyBoat
@@ -39,9 +40,10 @@ class MainMenu:
         self._lcd = lcd
         self._gamepad = gamepad
         #
-        self._units = [UnitPyCar(lcd, gamepad, ble), \
-                       UnitPyDrone(lcd, gamepad, ble), \
-                        UnitPyBoat(lcd, gamepad, ble)]
+        self._units = [UnitPyBoat(lcd, gamepad, ble), \
+                        UnitPyCar(lcd, gamepad, ble), \
+                        UnitPyDrone(lcd, gamepad, ble), \
+                        UnitNesGame(lcd, gamepad)]
         self.Reset()
     #
     def Reset(self):
@@ -87,6 +89,7 @@ class DevSelectMenu:
         # 此时 self._select 大概率为 0。
         self._lcd.Picture(219, 9+self._select*49, 'picture/arrow.jpg')
     #
+    # ((ControlUnit, Table) unit) String, 标准返回值有：''，'Enter'，'Cancle'。
     def DoSelect(self, unit):
         keys = self._gamepad.read()
         if keys[1]>200:
@@ -124,13 +127,16 @@ class DevSelectMenu:
             s = i-self._page
             unit.PrintInfo(self._lcd, i, s, s==self._select)
         #
-        if keys[6]==32: # start 键
+        if keys[6]==32: # start 键确认或进入下级菜单。
             print("start")
             if unit.Size()>0:
-                unit.Select(self._select)
+                return unit.OnSelected(self._select)
             #
         #
-        time.sleep_ms(50)
+        if keys[6] == 16: # back 键返回主菜单。
+            return 'Cancle'
+        #
+        return ''
     #
 #
 
@@ -148,8 +154,6 @@ class Controller(ControllerLcd):
         if unit:
             unit.Clean()
             self.Clear()
-            self._dmenu.Reset()
-            self._dmenu.DrawTable()
             #
             unit.MenuEntered(self._dmenu)
             self._mmenu.Reset()
